@@ -1,0 +1,10 @@
+Gemini est un modèle de langage multimodal développé par Google DeepMind.
+Il est accessible via l'API Gemini et le SDK officiel python google-genai.
+Le modèle gemini-2.0-flash est optimisé pour la rapidité et les tâches courantes.
+Le modèle gemini-2.5-pro offre des capacités avancées de raisonnement complexe.
+Pour générer du texte, on utilise client.models.generate_content().
+Les embeddings Gemini transforment du texte en vecteurs numériques de haute dimension.
+Le modèle text-embedding-004 produit des vecteurs de dimension 768.
+La technique RAG (Retrieval-Augmented Generation) améliore la précision des réponses
+en fournissant au modèle un contexte externe retrouvé par recherche sémantique.
+La similarité cosine mesure l'angle entre deux vecteurs : 1 signifie identiques, 0 orthogonaux.
