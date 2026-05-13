@@ -1,0 +1,20 @@
+# Cache navigateur (artefacts Colab sauvegardés localement)
+cache/
+
+# Environnement Python
+__pycache__/
+*.py[cod]
+
+# Checkpoints Jupyter
+.ipynb_checkpoints/
+
+# Variables d'environnement (ne jamais versionner)
+.env
+
+# Sorties générées (volumineuses et reproductibles)
+outputs/
+
+# Garder les dossiers vides dans le dépôt
+!notebooks/.gitkeep
+!outputs/.gitkeep
+!assets/.gitkeep
