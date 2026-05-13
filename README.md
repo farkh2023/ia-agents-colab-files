@@ -99,6 +99,37 @@ jupyter notebook notebooks/mon_agent.ipynb
 
 ---
 
+## Lancement local rapide
+
+### Installer les dépendances
+
+```powershell
+pip install -r requirements.txt
+```
+
+### Configurer l'environnement
+
+```powershell
+Copy-Item .env.example .env
+# Ouvrez .env et renseignez votre GEMINI_API_KEY
+```
+
+### Lancer Jupyter
+
+Via le script automatisé (vérifie les pré-requis avant de démarrer) :
+
+```powershell
+.\scripts\run_jupyter.ps1
+```
+
+Ou directement :
+
+```powershell
+jupyter notebook notebooks/
+```
+
+---
+
 ## Prochaines améliorations
 
 - [ ] **Versionner les notebooks** : exporter régulièrement les `.ipynb` depuis Colab et les commiter dans `notebooks/`.
