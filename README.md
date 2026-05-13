@@ -40,6 +40,17 @@ Colab_files/
 
 ---
 
+## Notebooks disponibles
+
+Tout nouveau notebook doit être placé dans le dossier `notebooks/` afin de rester organisé, versionnable et exécutable localement.
+
+| Notebook | Rôle | Statut |
+|---|---|---|
+| `notebooks/gemini_starter.ipynb` | Notebook de démarrage pour tester Gemini API avec `google-genai` : chargement de `GEMINI_API_KEY` depuis `.env` et génération de texte simple. | Actif |
+| `notebooks/cretionimg.ipynb` | Notebook préexistant lié à la création ou expérimentation d'images. À auditer avant documentation complète. | À vérifier |
+
+---
+
 ## Préparer une exécution locale
 
 Si vous souhaitez exécuter un notebook **sans Google Colab**, suivez ces étapes :
