@@ -13,7 +13,7 @@ import os
 import sys
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from google import genai
 
 # ── Import des fonctions RAG depuis scripts/ ──────────────────────────────────
@@ -99,6 +99,13 @@ except (EnvironmentError, FileNotFoundError, RuntimeError) as _exc:
 # ── Application Flask ─────────────────────────────────────────────────────────
 
 app = Flask(__name__)
+
+
+# ── GET / ────────────────────────────────────────────────────────────────────
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template("index.html")
 
 
 # ── GET /health ───────────────────────────────────────────────────────────────

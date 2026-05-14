@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA Agents — RAG</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>IA Agents — RAG</h1>
+    <p>Recherche sémantique dans les notes locales via Gemini</p>
+  </header>
+
+  <main>
+
+    <!-- Formulaire de recherche -->
+    <section class="search-section">
+      <form id="query-form" novalidate>
+
+        <div class="form-group">
+          <label for="question">Question</label>
+          <input
+            type="text"
+            id="question"
+            name="question"
+            placeholder="Ex : Comment utiliser Gemini pour générer du texte ?"
+            autocomplete="off"
+            required
+          >
+        </div>
+
+        <div class="form-row">
+          <div class="form-group small">
+            <label for="top-k">Sources (top_k)</label>
+            <input type="number" id="top-k" value="2" min="1" max="10">
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="retrieve-only" checked>
+              <span>Recherche seule</span>
+              <small>— sans génération Gemini (évite les erreurs de quota)</small>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-btn">Rechercher</button>
+      </form>
+    </section>
+
+    <!-- Zone de résultats -->
+    <section id="results" class="results-section hidden">
+
+      <div id="error-box" class="error-box hidden"></div>
+
+      <div id="result-card" class="result-card hidden">
+
+        <div class="result-block">
+          <span class="label">Question</span>
+          <p id="result-question"></p>
+        </div>
+
+        <div id="answer-block" class="answer-block hidden">
+          <span class="label">Réponse Gemini</span>
+          <p id="result-answer"></p>
+        </div>
+
+        <div class="result-block">
+          <span class="label">Sources retrouvées</span>
+          <ul id="sources-list"></ul>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
