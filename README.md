@@ -224,6 +224,37 @@ curl -X POST http://localhost:5000/query `
 
 ---
 
+## Interface web locale
+
+L'interface web permet d'utiliser le moteur RAG depuis le navigateur, sans passer par `curl` ou un client HTTP.
+
+### Lancer le serveur
+
+```powershell
+python app.py
+```
+
+Puis ouvrir **[http://localhost:5000](http://localhost:5000)** dans un navigateur.
+
+### Fonctionnalités
+
+- Champ texte pour saisir la question
+- Sélecteur `top_k` (nombre de sources à retrouver, défaut : 2)
+- Option **Recherche seule** cochée par défaut (`retrieve_only: true`) — évite les erreurs de quota Gemini
+- Affichage des sources retrouvées avec nom de fichier, score de similarité et extrait
+- Affichage de la réponse générée si `retrieve_only` est désactivé
+- Message d'erreur clair en cas d'échec (quota, réseau, JSON invalide)
+
+### Fichiers de l'interface
+
+| Fichier | Rôle |
+|---|---|
+| `templates/index.html` | Structure HTML de la page |
+| `static/style.css` | Mise en page responsive |
+| `static/app.js` | Appel AJAX `POST /query` et rendu des résultats |
+
+---
+
 ## Prochaines améliorations
 
 - [ ] **Versionner les notebooks** : exporter régulièrement les `.ipynb` depuis Colab et les commiter dans `notebooks/`.
