@@ -146,6 +146,8 @@ jupyter notebook notebooks/
 python scripts/rag_notes_demo.py --question "Quel est l'objectif de ce projet ?"
 ```
 
+> **Note :** Le fichier `outputs/embeddings.json` est généré automatiquement lors de la première exécution du script RAG. Il est ignoré par Git (voir `.gitignore`) et n'a pas besoin d'être versionné.
+
 ---
 
 ## Prochaines améliorations
