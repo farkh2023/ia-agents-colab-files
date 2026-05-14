@@ -5,9 +5,12 @@ Usage :
     python scripts/rag_notes_demo.py
     python scripts/rag_notes_demo.py --question "Votre question ici"
     python scripts/rag_notes_demo.py --top-k 3 --question "Votre question"
+    python scripts/rag_notes_demo.py --rebuild-index
 """
 
 import argparse
+import hashlib
+import json
 import os
 import sys
 from pathlib import Path
@@ -21,6 +24,7 @@ from google import genai
 EMBED_MODEL      = "models/text-embedding-004"
 GEN_MODEL        = "gemini-2.0-flash"
 DEFAULT_QUESTION = "Comment utiliser Gemini pour générer du texte en Python ?"
+CACHE_FILE       = "embeddings.json"
 EXAMPLE_NOTE     = (
     "Gemini est un modèle de langage multimodal développé par Google DeepMind.\n"
     "Il est accessible via l'API Gemini et le SDK officiel python google-genai.\n"
@@ -35,6 +39,31 @@ EXAMPLE_NOTE     = (
 )
 
 # ── Fonctions utilitaires ─────────────────────────────────────────────────────
+
+
+def content_hash(text: str) -> str:
+    """Retourne le SHA-256 du contenu texte (détection de modification)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def load_embedding_cache(cache_path: Path) -> dict:
+    """Charge outputs/embeddings.json. Retourne {} si absent ou corrompu."""
+    if not cache_path.exists():
+        return {}
+    try:
+        return json.loads(cache_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        print(f"[WARN] Cache illisible, reconstruction complète : {cache_path.name}")
+        return {}
+
+
+def save_embedding_cache(cache_path: Path, cache: dict) -> None:
+    """Sauvegarde le cache d'embeddings dans outputs/embeddings.json."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(
+        json.dumps(cache, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def find_project_root(start: Path) -> Path:
@@ -185,7 +214,8 @@ def main() -> None:
             "Exemples :\n"
             "  python scripts/rag_notes_demo.py\n"
             '  python scripts/rag_notes_demo.py --question "Qu\'est-ce que RAG ?"\n'
-            "  python scripts/rag_notes_demo.py --top-k 3 --question \"Votre question\""
+            "  python scripts/rag_notes_demo.py --top-k 3 --question \"Votre question\"\n"
+            "  python scripts/rag_notes_demo.py --rebuild-index"
         ),
     )
     parser.add_argument(
@@ -199,6 +229,11 @@ def main() -> None:
         default=2,
         metavar="N",
         help="Nombre de notes à retrouver (défaut : 2)",
+    )
+    parser.add_argument(
+        "--rebuild-index",
+        action="store_true",
+        help="Forcer la régénération de tous les embeddings (ignore le cache).",
     )
     args = parser.parse_args()
 
@@ -214,12 +249,33 @@ def main() -> None:
     print("=== Chargement des notes ===")
     notes = load_text_notes(project_root / "assets")
 
-    # 4. Client Gemini + embeddings
+    # 4. Client Gemini + embeddings (avec cache)
     client = genai.Client(api_key=api_key)
+    outputs_dir = project_root / "outputs"
+    outputs_dir.mkdir(exist_ok=True)
+    cache_path = outputs_dir / CACHE_FILE
+
     print("=== Génération des embeddings ===")
+    cache = {} if args.rebuild_index else load_embedding_cache(cache_path)
+    if args.rebuild_index:
+        print("[INFO] Reconstruction forcée de l'index (--rebuild-index).")
+
+    cache_updated = False
     for note in notes:
-        note["embedding"] = embed_text(client, note["content"])
-        print(f"  [OK] {note['source']}  — dimension : {len(note['embedding'])}")
+        h = content_hash(note["content"])
+        cached = cache.get(note["source"], {})
+        if cached.get("hash") == h:
+            note["embedding"] = cached["embedding"]
+            print(f"  [CACHE] {note['source']}  — embedding réutilisé")
+        else:
+            note["embedding"] = embed_text(client, note["content"])
+            cache[note["source"]] = {"hash": h, "embedding": note["embedding"]}
+            cache_updated = True
+            print(f"  [NEW]   {note['source']}  — dimension : {len(note['embedding'])}")
+
+    if cache_updated:
+        save_embedding_cache(cache_path, cache)
+        print(f"  → Cache sauvegardé : {cache_path.relative_to(project_root)}")
     print()
 
     # 5-8. Recherche et réponse
