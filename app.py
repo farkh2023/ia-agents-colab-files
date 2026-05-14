@@ -22,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
 
 from rag_notes_demo import (  # noqa: E402
     CACHE_FILE,
-    DEFAULT_EMBEDDING_MODEL,
     DEFAULT_GENERATION_MODEL,
     content_hash,
     embed_text,
@@ -33,6 +32,9 @@ from rag_notes_demo import (  # noqa: E402
     retrieve,
     save_embedding_cache,
 )
+
+# Défaut local aligné avec .env.example — remplace le défaut du script (text-embedding-004)
+_DEFAULT_EMBED_MODEL = "gemini-embedding-001"
 
 # ── Initialisation au démarrage ───────────────────────────────────────────────
 
@@ -46,11 +48,14 @@ def _init() -> tuple:
     api_key = load_env(project_root)
 
     embed_model = (
-        os.environ.get("GEMINI_EMBEDDING_MODEL", "").strip() or DEFAULT_EMBEDDING_MODEL
+        os.environ.get("GEMINI_EMBEDDING_MODEL", "").strip() or _DEFAULT_EMBED_MODEL
     )
     gen_model = (
         os.environ.get("GEMINI_GENERATION_MODEL", "").strip() or DEFAULT_GENERATION_MODEL
     )
+
+    print(f"Modèle d'embedding  : {embed_model}")
+    print(f"Modèle de génération : {gen_model}")
 
     client = genai.Client(api_key=api_key)
 
