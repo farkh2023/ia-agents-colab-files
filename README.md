@@ -150,6 +150,80 @@ python scripts/rag_notes_demo.py --question "Quel est l'objectif de ce projet ?"
 
 ---
 
+## API Flask RAG
+
+L'API expose le pipeline RAG local via HTTP.
+
+### Lancer l'API
+
+```powershell
+python app.py
+```
+
+L'API démarre sur `http://localhost:5000`. Les notes de `assets/` sont indexées au démarrage (les embeddings sont mis en cache dans `outputs/embeddings.json`).
+
+### GET /health
+
+Vérifie que le service est opérationnel.
+
+```powershell
+curl http://localhost:5000/health
+```
+
+```json
+{ "status": "ok", "service": "ia-agents-rag-api" }
+```
+
+### POST /query
+
+Effectue une recherche RAG et retourne les sources (et optionnellement une réponse générée).
+
+| Champ | Type | Défaut | Description |
+|---|---|---|---|
+| `question` | string | — | Question à poser (obligatoire) |
+| `top_k` | int | `2` | Nombre de notes à retrouver |
+| `retrieve_only` | bool | `true` | Si `true`, n'appelle pas `generate_content()` |
+
+> **Par défaut `retrieve_only: true`** pour éviter les erreurs de quota Gemini.
+
+**Exemple — recherche seule :**
+
+```powershell
+curl -X POST http://localhost:5000/query `
+  -H "Content-Type: application/json" `
+  -d '{"question": "Comment fonctionne RAG ?", "top_k": 2}'
+```
+
+```json
+{
+  "question": "Comment fonctionne RAG ?",
+  "answer": null,
+  "sources": [
+    { "source": "example_note.txt", "score": 0.8741, "excerpt": "..." }
+  ]
+}
+```
+
+**Exemple — avec génération :**
+
+```powershell
+curl -X POST http://localhost:5000/query `
+  -H "Content-Type: application/json" `
+  -d '{"question": "Comment fonctionne RAG ?", "retrieve_only": false}'
+```
+
+```json
+{
+  "question": "Comment fonctionne RAG ?",
+  "answer": "RAG améliore la précision en...",
+  "sources": [
+    { "source": "example_note.txt", "score": 0.8741, "excerpt": "..." }
+  ]
+}
+```
+
+---
+
 ## Prochaines améliorations
 
 - [ ] **Versionner les notebooks** : exporter régulièrement les `.ipynb` depuis Colab et les commiter dans `notebooks/`.
