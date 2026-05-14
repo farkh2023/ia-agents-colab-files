@@ -22,8 +22,8 @@ from google import genai
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 
-DEFAULT_EMBEDDING_MODEL = "text-embedding-004"
-GEN_MODEL               = "gemini-2.0-flash"
+DEFAULT_EMBEDDING_MODEL  = "text-embedding-004"
+DEFAULT_GENERATION_MODEL = "gemini-2.0-flash"
 DEFAULT_QUESTION = "Comment utiliser Gemini pour générer du texte en Python ?"
 CACHE_FILE       = "embeddings.json"
 EXAMPLE_NOTE     = (
@@ -179,13 +179,24 @@ def answer(
     notes: list[dict],
     top_k: int = 2,
     embed_model: str = DEFAULT_EMBEDDING_MODEL,
+    gen_model: str = DEFAULT_GENERATION_MODEL,
+    retrieve_only: bool = False,
 ) -> str:
     """
-    Retrouve le contexte pertinent via `retrieve()` et génère une réponse
-    avec Gemini. Affiche la réponse et les sources utilisées.
-    Retourne le texte de la réponse.
+    Retrouve le contexte pertinent via `retrieve()`, affiche les sources,
+    puis génère une réponse avec Gemini (sauf si retrieve_only=True).
+    Retourne le texte de la réponse, ou "" en mode retrieve_only.
     """
     retrieved = retrieve(client, question, notes, top_k=top_k, embed_model=embed_model)
+
+    print(f"Question : {question}\n")
+    print("=== Sources retrouvées ===")
+    for i, r in enumerate(retrieved, 1):
+        print(f"  [{i}] {r['source']}  (score : {r['score']:.4f})")
+        print(f"       {r['content'][:120]}...")
+
+    if retrieve_only:
+        return ""
 
     context = "\n\n".join(
         f"[Source : {r['source']}]\n{r['content']}"
@@ -200,17 +211,26 @@ def answer(
         "Réponds de façon concise et précise."
     )
 
-    response = client.models.generate_content(
-        model=GEN_MODEL,
-        contents=prompt,
-    )
+    try:
+        response = client.models.generate_content(
+            model=gen_model,
+            contents=prompt,
+        )
+    except Exception as exc:
+        error_str = str(exc)
+        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            raise RuntimeError(
+                f"Quota Gemini dépassé pour le modèle de génération '{gen_model}'.\n"
+                "  → Attendez la réinitialisation du quota (généralement 1 minute).\n"
+                f"  → Changez de modèle avec --generation-model gemini-1.5-flash\n"
+                "  → Utilisez --retrieve-only pour ignorer la génération."
+            ) from exc
+        raise RuntimeError(
+            f"Échec de la génération avec le modèle '{gen_model}' : {exc}"
+        ) from exc
 
-    print(f"Question : {question}\n")
-    print("=== Réponse Gemini ===")
+    print("\n=== Réponse Gemini ===")
     print(response.text)
-    print("\n=== Sources utilisées ===")
-    for r in retrieved:
-        print(f"  - {r['source']}  (score : {r['score']:.4f})")
 
     return response.text
 
@@ -228,7 +248,9 @@ def main() -> None:
             '  python scripts/rag_notes_demo.py --question "Qu\'est-ce que RAG ?"\n'
             "  python scripts/rag_notes_demo.py --top-k 3 --question \"Votre question\"\n"
             "  python scripts/rag_notes_demo.py --rebuild-index\n"
-            "  python scripts/rag_notes_demo.py --embedding-model gemini-embedding-exp-03-07"
+            "  python scripts/rag_notes_demo.py --retrieve-only\n"
+            "  python scripts/rag_notes_demo.py --embedding-model gemini-embedding-exp-03-07\n"
+            "  python scripts/rag_notes_demo.py --generation-model gemini-1.5-flash"
         ),
     )
     parser.add_argument(
@@ -257,6 +279,20 @@ def main() -> None:
             "Surcharge GEMINI_EMBEDDING_MODEL dans .env."
         ),
     )
+    parser.add_argument(
+        "--generation-model",
+        default=None,
+        metavar="MODEL",
+        help=(
+            f"Modèle de génération Gemini (défaut : {DEFAULT_GENERATION_MODEL}). "
+            "Surcharge GEMINI_GENERATION_MODEL dans .env."
+        ),
+    )
+    parser.add_argument(
+        "--retrieve-only",
+        action="store_true",
+        help="Afficher uniquement les sources retrouvées, sans appeler generate_content().",
+    )
     args = parser.parse_args()
 
     # 1. Racine du projet
@@ -267,14 +303,23 @@ def main() -> None:
     api_key = load_env(project_root)
     print("Clé API chargée.")
 
-    # Priorité : CLI > .env > DEFAULT_EMBEDDING_MODEL
+    # Priorité : CLI > .env > défaut
     embed_model = (
         args.embedding_model
         or os.environ.get("GEMINI_EMBEDDING_MODEL", "").strip()
         or DEFAULT_EMBEDDING_MODEL
     )
+    gen_model = (
+        args.generation_model
+        or os.environ.get("GEMINI_GENERATION_MODEL", "").strip()
+        or DEFAULT_GENERATION_MODEL
+    )
     print(f"Modèle d'embedding  : {embed_model}")
-    print(f"Modèle de génération : {GEN_MODEL}\n")
+    if args.retrieve_only:
+        print("Modèle de génération : (désactivé — mode --retrieve-only)")
+    else:
+        print(f"Modèle de génération : {gen_model}")
+    print()
 
     # 3. Chargement des notes
     print("=== Chargement des notes ===")
@@ -309,9 +354,18 @@ def main() -> None:
         print(f"  → Cache sauvegardé : {cache_path.relative_to(project_root)}")
     print()
 
-    # 5-8. Recherche et réponse
-    print("=== Recherche et génération ===\n")
-    answer(client, question=args.question, notes=notes, top_k=args.top_k, embed_model=embed_model)
+    # 5-8. Recherche et génération (ou retrieve-only)
+    label = "Recherche sémantique" if args.retrieve_only else "Recherche et génération"
+    print(f"=== {label} ===\n")
+    answer(
+        client,
+        question=args.question,
+        notes=notes,
+        top_k=args.top_k,
+        embed_model=embed_model,
+        gen_model=gen_model,
+        retrieve_only=args.retrieve_only,
+    )
 
 
 if __name__ == "__main__":
