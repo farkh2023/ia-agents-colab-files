@@ -6,6 +6,7 @@ Usage :
     python scripts/rag_notes_demo.py --question "Votre question ici"
     python scripts/rag_notes_demo.py --top-k 3 --question "Votre question"
     python scripts/rag_notes_demo.py --rebuild-index
+    python scripts/rag_notes_demo.py --embedding-model gemini-embedding-exp-03-07
 """
 
 import argparse
@@ -21,8 +22,8 @@ from google import genai
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 
-EMBED_MODEL      = "models/text-embedding-004"
-GEN_MODEL        = "gemini-2.0-flash"
+DEFAULT_EMBEDDING_MODEL = "text-embedding-004"
+GEN_MODEL               = "gemini-2.0-flash"
 DEFAULT_QUESTION = "Comment utiliser Gemini pour générer du texte en Python ?"
 CACHE_FILE       = "embeddings.json"
 EXAMPLE_NOTE     = (
@@ -118,13 +119,22 @@ def load_text_notes(assets_dir: Path) -> list[dict]:
 # ── Fonctions Gemini ──────────────────────────────────────────────────────────
 
 
-def embed_text(client: genai.Client, text: str) -> list[float]:
+def embed_text(client: genai.Client, text: str, model: str) -> list[float]:
     """Retourne le vecteur d'embedding d'un texte via Gemini."""
-    response = client.models.embed_content(
-        model=EMBED_MODEL,
-        contents=text,
-    )
-    return response.embeddings[0].values
+    try:
+        response = client.models.embed_content(
+            model=model,
+            contents=text,
+        )
+        return response.embeddings[0].values
+    except Exception as exc:
+        raise RuntimeError(
+            f"Échec de l'embedding avec le modèle '{model}'.\n"
+            "  → Vérifiez que le modèle est disponible pour votre version d'API.\n"
+            "  → Modèles valides : text-embedding-004, gemini-embedding-exp-03-07\n"
+            "  → Modifiable via GEMINI_EMBEDDING_MODEL dans .env ou --embedding-model\n"
+            f"  Erreur originale : {exc}"
+        ) from exc
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
@@ -143,12 +153,13 @@ def retrieve(
     question: str,
     notes: list[dict],
     top_k: int = 2,
+    embed_model: str = DEFAULT_EMBEDDING_MODEL,
 ) -> list[dict]:
     """
     Calcule l'embedding de la question, puis retourne les `top_k` notes
     les plus proches par similarité cosine décroissante.
     """
-    q_embedding = embed_text(client, question)
+    q_embedding = embed_text(client, question, model=embed_model)
 
     scored = [
         {
@@ -167,13 +178,14 @@ def answer(
     question: str,
     notes: list[dict],
     top_k: int = 2,
+    embed_model: str = DEFAULT_EMBEDDING_MODEL,
 ) -> str:
     """
     Retrouve le contexte pertinent via `retrieve()` et génère une réponse
     avec Gemini. Affiche la réponse et les sources utilisées.
     Retourne le texte de la réponse.
     """
-    retrieved = retrieve(client, question, notes, top_k=top_k)
+    retrieved = retrieve(client, question, notes, top_k=top_k, embed_model=embed_model)
 
     context = "\n\n".join(
         f"[Source : {r['source']}]\n{r['content']}"
@@ -215,7 +227,8 @@ def main() -> None:
             "  python scripts/rag_notes_demo.py\n"
             '  python scripts/rag_notes_demo.py --question "Qu\'est-ce que RAG ?"\n'
             "  python scripts/rag_notes_demo.py --top-k 3 --question \"Votre question\"\n"
-            "  python scripts/rag_notes_demo.py --rebuild-index"
+            "  python scripts/rag_notes_demo.py --rebuild-index\n"
+            "  python scripts/rag_notes_demo.py --embedding-model gemini-embedding-exp-03-07"
         ),
     )
     parser.add_argument(
@@ -235,15 +248,33 @@ def main() -> None:
         action="store_true",
         help="Forcer la régénération de tous les embeddings (ignore le cache).",
     )
+    parser.add_argument(
+        "--embedding-model",
+        default=None,
+        metavar="MODEL",
+        help=(
+            f"Modèle d'embedding Gemini (défaut : {DEFAULT_EMBEDDING_MODEL}). "
+            "Surcharge GEMINI_EMBEDDING_MODEL dans .env."
+        ),
+    )
     args = parser.parse_args()
 
     # 1. Racine du projet
     project_root = find_project_root(Path(__file__).resolve().parent)
     print(f"Racine du projet : {project_root}\n")
 
-    # 2. Clé API
+    # 2. Clé API + modèle d'embedding
     api_key = load_env(project_root)
-    print("Clé API chargée.\n")
+    print("Clé API chargée.")
+
+    # Priorité : CLI > .env > DEFAULT_EMBEDDING_MODEL
+    embed_model = (
+        args.embedding_model
+        or os.environ.get("GEMINI_EMBEDDING_MODEL", "").strip()
+        or DEFAULT_EMBEDDING_MODEL
+    )
+    print(f"Modèle d'embedding  : {embed_model}")
+    print(f"Modèle de génération : {GEN_MODEL}\n")
 
     # 3. Chargement des notes
     print("=== Chargement des notes ===")
@@ -268,7 +299,7 @@ def main() -> None:
             note["embedding"] = cached["embedding"]
             print(f"  [CACHE] {note['source']}  — embedding réutilisé")
         else:
-            note["embedding"] = embed_text(client, note["content"])
+            note["embedding"] = embed_text(client, note["content"], model=embed_model)
             cache[note["source"]] = {"hash": h, "embedding": note["embedding"]}
             cache_updated = True
             print(f"  [NEW]   {note['source']}  — dimension : {len(note['embedding'])}")
@@ -280,12 +311,12 @@ def main() -> None:
 
     # 5-8. Recherche et réponse
     print("=== Recherche et génération ===\n")
-    answer(client, question=args.question, notes=notes, top_k=args.top_k)
+    answer(client, question=args.question, notes=notes, top_k=args.top_k, embed_model=embed_model)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (EnvironmentError, FileNotFoundError) as exc:
+    except (EnvironmentError, FileNotFoundError, RuntimeError) as exc:
         print(f"\n[ERREUR] {exc}", file=sys.stderr)
         sys.exit(1)
