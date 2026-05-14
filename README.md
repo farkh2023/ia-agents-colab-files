@@ -48,6 +48,7 @@ Tout nouveau notebook doit être placé dans le dossier `notebooks/` afin de res
 |---|---|---|
 | `notebooks/gemini_starter.ipynb` | Notebook de démarrage pour tester Gemini API avec `google-genai` : chargement de `GEMINI_API_KEY` depuis `.env` et génération de texte simple. | Actif |
 | `notebooks/cretionimg.ipynb` | Notebook préexistant lié à la création ou expérimentation d'images. À auditer avant documentation complète. | À vérifier |
+| `notebooks/rag_notes_demo.ipynb` | Démonstration RAG minimale : lecture de notes `.txt` depuis `assets/`, embeddings Gemini, recherche par similarité cosine, puis génération d'une réponse avec contexte. | Actif |
 
 ---
 
