@@ -52,6 +52,17 @@ Tout nouveau notebook doit être placé dans le dossier `notebooks/` afin de res
 
 ---
 
+## Scripts disponibles
+
+Tout nouveau script doit être placé dans `scripts/` et documenté ici.
+
+| Script | Type | Rôle |
+|---|---|---|
+| `scripts/run_jupyter.ps1` | PowerShell | Lance Jupyter Notebook depuis la racine du projet, vérifie les pré-requis (`.env`, `notebooks/`, dépendances) avant démarrage. |
+| `scripts/rag_notes_demo.py` | Python | Pipeline RAG exécutable sans Jupyter : charge les notes `.txt` depuis `assets/`, génère les embeddings Gemini, retrouve les passages pertinents et génère une réponse. Accepte `--question` et `--top-k`. |
+
+---
+
 ## Préparer une exécution locale
 
 Si vous souhaitez exécuter un notebook **sans Google Colab**, suivez ces étapes :
@@ -127,6 +138,12 @@ Ou directement :
 
 ```powershell
 jupyter notebook notebooks/
+```
+
+### Exécuter le script RAG local
+
+```powershell
+python scripts/rag_notes_demo.py --question "Quel est l'objectif de ce projet ?"
 ```
 
 ---
